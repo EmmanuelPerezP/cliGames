@@ -25,6 +25,7 @@ class mainWindow:
         curses.use_default_colors()
         curses.init_pair(1, 5, -1)
         curses.init_pair(2, 2, -1)
+        curses.init_pair(3, 7, -1)
         self.mainW.nodelay(True)
         mainWindow.sizeX = self.mainW.getmaxyx()[1]
         mainWindow.sizeY = self.mainW.getmaxyx()[0]
@@ -36,6 +37,7 @@ class mainWindow:
         curses.curs_set(0)
         mainWindow.sizeX = self.mainW.getmaxyx()[1]
         self.mainW.box()
+        self.addEnemies()
         while True:
 
             mainWindow.sizeX = self.mainW.getmaxyx()[1]
@@ -44,13 +46,15 @@ class mainWindow:
             self.ventana.addstr(0,0,str(mainWindow.sizeX),curses.color_pair(1))
             self.ventana.addstr(1,0,str(mainWindow.sizeY),curses.color_pair(1))
             self.ventana.noutrefresh()
-            agregarEnemigos = random.randint(0,300)
+            agregarEnemigos = random.randint(0,700)
             if agregarEnemigos == 50:
                 self.addEnemies()
             entrada = self.mainW.getch()
             self.ventana.addstr(0,5,str(entrada),curses.color_pair(1))
             if entrada == 27:
                 break
+            if entrada == ord('n'):
+                player(mainWindow.sizeY//2, mainWindow.sizeX//2)
 
             for i in mainWindow.players:
                 i.move(entrada) 
@@ -68,8 +72,8 @@ class mainWindow:
     def addEnemies(self):
         newEnemies = random.randint(1,3) 
         for i in range(0,newEnemies):
-            enemyX = random.randint(1, 28)
-            enemyY = random.randint(1, 29)
+            enemyX = random.randint(1, mainWindow.sizeY - 4)
+            enemyY = random.randint(1, mainWindow.sizeX - 4)
             enemy1(enemyX, enemyY)
         
 
@@ -77,7 +81,7 @@ class player:
 
     Xsteps = 1
     Ysteps = 1
-    speed = 5
+    speed = 7 
     releaseKeys = [ -11, -10, -18, -19]
 
     def __init__(self, y, x):
@@ -101,6 +105,13 @@ class player:
         updates the player on screen, it has a delay so its independent of the 
         refresh rate
         """
+        for bullet in mainWindow.bullets:
+            if self.currentX <= bullet.currentX <= self.currentX+3 and \
+                    self.currentY <= bullet.currentY <=self.currentY+6:
+                        try:
+                            mainWindow.players.remove(self)
+                        except:
+                            pass
 
         if self.speed != player.speed:
             self.speed += 1
@@ -113,7 +124,7 @@ class player:
             elif self.dirX == 0:
                 pass
             
-            if self.currentX == mainWindow.sizeX-4 or self.currentX == 4:
+            if self.currentX == mainWindow.sizeX-5 or self.currentX == 4:
                 self.dirX = 0
 
             if self.dirY == -1:
@@ -174,20 +185,25 @@ class player:
                 self.dirY = 0
             else:
                 self.dirY = -1
+
         elif key_code == ord(' '):
-            bulletFired = bullet(self.currentY, self.currentX, len(mainWindow.bullets))
+            bulletFired = bullet(self.currentY, self.currentX,
+                    len(mainWindow.bullets),2)
+
         elif key_code == ord('s'):
             self.stop = not self.stop
 
 
 class enemy1:
 
-    speed = 30
+    speed = 80
+    bulletFrequency = 200
 
     def __init__(self, startingY, startingX):
 
         self.currentX = startingX 
         self.currentY = startingY 
+        self.bulletFrequency = 0
 
 
         self.width = 3 
@@ -202,9 +218,9 @@ class enemy1:
 
     def updateEnemy(self):
 
-        for i in mainWindow.bullets:
-            if self.currentX+2 >= i.currentX >= self.currentX and \
-                    self.currentY-2 <= i.currentY <=self.currentY:
+        for bulletInField in mainWindow.bullets:
+            if self.currentX <= bulletInField.currentX <= self.currentX+2 and \
+                    self.currentY-2 <= bulletInField.currentY <=self.currentY:
                         try:
                             mainWindow.enemies.remove(self)
                         except:
@@ -213,9 +229,17 @@ class enemy1:
 
         if self.speed != enemy1.speed:
             self.speed +=1
+            self.bulletFrequency +=1
+
+
+        if self.bulletFrequency == enemy1.bulletFrequency:
+            bulletFired = bullet(self.currentY+4, self.currentX,
+                    len(mainWindow.bullets), 3, 1)
+            self.bulletFrequency = 0
 
 
         elif self.speed == enemy1.speed:
+
             if self.direccion == 1:
                 self.currentX += 1 
             elif self.direccion == -1:
@@ -230,16 +254,17 @@ class enemy1:
 
 class bullet:
     
-    bulletSpeed = 10
+    bulletSpeed = 4
         
-    def __init__(self, startingY, startingX, index, width=1, height=2):
+    def __init__(self, startingY, startingX, index, color, direction=-1, width=1, height=2):
         self.currentX = startingX +2
         self.currentY = startingY -2
+        self.direction = direction
 
         self.width = width 
         self.height = height 
         self.bulletW = curses.newwin(height, width, self.currentY, self.currentX) 
-        self.bulletW.addstr('|', curses.color_pair(2))
+        self.bulletW.addstr('|', curses.color_pair(color))
         #self.bulletW.box()
         self.bulletP = curses.panel.new_panel(self.bulletW) 
         self.speed = 0 
@@ -249,15 +274,17 @@ class bullet:
 
     def updateBullet(self):
 
-        if self.currentY == 1:
+        if self.currentY == 0 or self.currentY == mainWindow.sizeY-3:
             mainWindow.bullets.remove(self)
 
         if self.speed != bullet.bulletSpeed:
             self.speed+=1
 
         elif self.speed == bullet.bulletSpeed:
-            
-            self.currentY -= 1
+            if self.direction == -1: 
+                self.currentY -= 1
+            elif self.direction == 1:
+                self.currentY += 1
             self.bulletP.move(self.currentY, self.currentX)
             self.speed = 0
             
