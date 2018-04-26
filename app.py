@@ -60,7 +60,8 @@ class mainWindow:
             for i in mainWindow.players:
                 i.move(entrada) 
             for i in mainWindow.bullets:
-                i.updateBullet()
+                i.update()
+                i.render()
             for i in mainWindow.enemies:
                 i.updateEnemy()
             for i in mainWindow.players:
@@ -263,6 +264,7 @@ class enemy1:
 
 class bullet:
     
+    # smaller value faster speed
     bulletSpeed = 4
         
     def __init__(self, startingY, startingX, index, color, thrower, direction=-1, width=1, height=2):
@@ -282,21 +284,23 @@ class bullet:
         self.index = index
         mainWindow.bullets.append(self)
 
-    def updateBullet(self):
-
-        if self.currentY == 0 or self.currentY == mainWindow.sizeY-2:
-            mainWindow.bullets.remove(self)
-
+    def speed(self):
         if self.speed != bullet.bulletSpeed:
             self.speed+=1
 
+    def update(self):
+        if self.currentY == 0 or self.currentY == mainWindow.sizeY-2:
+            mainWindow.bullets.remove(self)
         elif self.speed == bullet.bulletSpeed:
             if self.direction == -1: 
                 self.currentY -= 1
             elif self.direction == 1:
                 self.currentY += 1
-            self.bulletP.move(self.currentY, self.currentX)
-            self.speed = 0
+            self.speed=0
+        self.speed+=1
+
+    def render(self):
+        self.bulletP.move(self.currentY, self.currentX)
 
     def getEnemy(self):
         return self.thrower
